@@ -9,6 +9,8 @@ using System.Threading;
 using AuthBot.Models;
 using System.Linq;
 using Newtonsoft.Json.Linq;
+using RomeMSGraphSkill.Services;
+using System.Collections.Generic;
 
 namespace RomeMSGraphSkill.Dialogs
 {
@@ -81,17 +83,61 @@ namespace RomeMSGraphSkill.Dialogs
             }
             else
             {
-                // calculate something for us to return
-                int length = activity.Text.Length;
+                var devicesResponse = await new DeviceGraphService().GetDevicesAsync(token);
+                if (devicesResponse.Item1)
+                {
+                    List<UserDevice> userDevices = new List<UserDevice>();
+                    foreach (var item in devicesResponse.Item2)
+                    {
+                        if (item.Status.ToLower() == "online")
+                        {
+                            userDevices.Add(item);
+                        }
+                    }
+                    ;
 
-                // say reply to the user
-                await context.SayAsync($"You sent {activity.Text} which was {length} characters", $" You said {activity.Text}", new MessageOptions() { InputHint = InputHints.AcceptingInput });
-                context.Wait(MessageReceivedAsync);
+                    // say reply to the user
+                    await context.SayAsync($"I found {devicesResponse.Item2.Count} devices, {userDevices.Count} of which are online", $" I found {devicesResponse.Item2.Count} devices, {userDevices.Count} of which are online", new MessageOptions() { InputHint = InputHints.IgnoringInput });
 
-                //await MessageReceivedAsync(context, Awaitable.FromItem<Microsoft.Bot.Connector.Activity>(activity));
-                //await base.MessageReceived(context, Awaitable.FromItem<Microsoft.Bot.Connector.Activity>(activity));
+                    // Array of strings for the PromptDialog.Choice buttons - though note these are not spoken, just shown on channels with UI
+                    var descriptions = new List<string>();
+                    // Define the device list choices, plus synonyms for each choice 
+                    var choices = new Dictionary<string, IReadOnlyList<string>>();
+
+                    foreach (var userDevice in userDevices)
+                    {
+                        descriptions.Add(userDevice.Name);
+                        choices.Add(userDevice.Name, new List<string> { userDevice.Name, userDevice.Name.ToLowerInvariant() });
+                    }
+
+                    var promptOptions = new PromptOptionsWithSynonyms<string>(
+                        prompt: "Choose one on which to launch the website", // prompt is not spoken
+                        choices: choices,
+                        descriptions: descriptions,
+                        speak: ($"Which one do you want to launch the website on?"));
+
+                    PromptDialog.Choice(context, DeviceChoiceReceivedAsync, promptOptions);
+
+                }
+                else
+                {
+                    // say reply to the user
+                    await context.SayAsync($"I couldn't get your devices", $" I couldn't get your devices", new MessageOptions() { InputHint = InputHints.IgnoringInput });
+                    context.Wait(MessageReceivedAsync);
+                }
             }
         }
+
+        private async Task DeviceChoiceReceivedAsync(IDialogContext context, IAwaitable<string> result)
+        {
+            var id = await result;
+            await context.SayAsync($"You chose {id}", $" You chose {id}", new MessageOptions() { InputHint = InputHints.AcceptingInput});
+
+
+
+            context.Wait(MessageReceivedAsync);
+        }
+
         private async Task ResumeAfterAuth(IDialogContext context, IAwaitable<string> result)
         {
             var message = await result;
