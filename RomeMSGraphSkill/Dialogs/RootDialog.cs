@@ -7,7 +7,6 @@ using AuthBot;
 using AuthBot.Dialogs;
 using System.Threading;
 using AuthBot.Models;
-using AuthBot;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 
