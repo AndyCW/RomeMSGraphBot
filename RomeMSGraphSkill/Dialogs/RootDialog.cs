@@ -94,7 +94,8 @@ namespace RomeMSGraphSkill.Dialogs
                             userDevices.Add(item);
                         }
                     }
-                    ;
+                    context.ConversationData.SetValue<List<UserDevice>>("Devices", userDevices);
+                    context.ConversationData.SetValue<string>("AuthToken", token);
 
                     // say reply to the user
                     await context.SayAsync($"I found {devicesResponse.Item2.Count} devices, {userDevices.Count} of which are online", $" I found {devicesResponse.Item2.Count} devices, {userDevices.Count} of which are online", new MessageOptions() { InputHint = InputHints.IgnoringInput });
@@ -104,10 +105,12 @@ namespace RomeMSGraphSkill.Dialogs
                     // Define the device list choices, plus synonyms for each choice 
                     var choices = new Dictionary<string, IReadOnlyList<string>>();
 
+                    int counter = 1;
                     foreach (var userDevice in userDevices)
                     {
-                        descriptions.Add(userDevice.Name);
-                        choices.Add(userDevice.Name, new List<string> { userDevice.Name, userDevice.Name.ToLowerInvariant() });
+                        descriptions.Add($"{counter}. {userDevice.Name}");
+                        choices.Add(counter.ToString(), new List<string> { userDevice.Name, userDevice.Name.ToLowerInvariant() });
+                        counter++;
                     }
 
                     var promptOptions = new PromptOptionsWithSynonyms<string>(
@@ -130,9 +133,22 @@ namespace RomeMSGraphSkill.Dialogs
 
         private async Task DeviceChoiceReceivedAsync(IDialogContext context, IAwaitable<string> result)
         {
-            var id = await result;
-            await context.SayAsync($"You chose {id}", $" You chose {id}", new MessageOptions() { InputHint = InputHints.AcceptingInput});
+            int choiceIndex = 0;
+            int.TryParse(await result, out choiceIndex);
 
+            List<UserDevice> deviceList;
+            if (context.ConversationData.TryGetValue<List<UserDevice>>("Devices", out deviceList))
+            {
+                var device = deviceList[choiceIndex - 1];
+
+                await context.SayAsync($"You chose {device.Name}", $" You chose {device.Name}", new MessageOptions() { InputHint = InputHints.IgnoringInput });
+
+                await context.SayAsync($"Launching Rome website on {device.Name}", $" Launching Rome website on {device.Name}", new MessageOptions() { InputHint = InputHints.AcceptingInput });
+
+                string authToken;
+                context.ConversationData.TryGetValue<string>("AuthToken", out authToken);
+                await new DeviceGraphService().CommandDeviceUriAsync(authToken, device.id);
+            }
 
 
             context.Wait(MessageReceivedAsync);

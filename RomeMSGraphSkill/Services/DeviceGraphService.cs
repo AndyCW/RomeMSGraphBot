@@ -6,6 +6,8 @@ using System.Configuration;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 
@@ -43,7 +45,40 @@ namespace RomeMSGraphSkill.Services
                 }
                 catch (Exception)
                 {
+                    throw;
+                }
+            }
+        }
 
+
+        public async Task<bool> CommandDeviceUriAsync(string authAccessToken, string id)
+        {
+            var restUri = new UriBuilder(ConfigurationManager.AppSettings["MSGraphDevicesApiUrl"]);
+            restUri.Path += $"/{id}/commands";
+
+            // Use access token to get user info from Live API
+            using (var client = new HttpClient())
+            {
+                // Pass the access_token in the Authorization header
+                client.DefaultRequestHeaders.Add("Authorization", "Bearer " + authAccessToken);
+
+                try
+                {
+                    string postBody = @"{ ""Type"": ""LaunchUri"", ""Payload"": {""uri"": ""https://github.com/Microsoft/project-rome"" }}";
+                    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                    var response = await client.PostAsync(restUri.Uri, new StringContent(postBody, Encoding.UTF8, "application/json"));
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        // API call failed
+                        Trace.TraceInformation($"[REST API Failed]{response.ReasonPhrase}");
+                        return false;
+                    }
+
+                    return true;
+                }
+                catch (Exception)
+                {
                     throw;
                 }
             }
