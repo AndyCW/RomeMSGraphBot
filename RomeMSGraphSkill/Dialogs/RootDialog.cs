@@ -9,8 +9,10 @@ using System.Threading;
 using AuthBot.Models;
 using System.Linq;
 using Newtonsoft.Json.Linq;
+using RomeMSGraphSkill.Helpers;
 using RomeMSGraphSkill.Services;
 using System.Collections.Generic;
+using System.Text;
 
 namespace RomeMSGraphSkill.Dialogs
 {
@@ -54,7 +56,8 @@ namespace RomeMSGraphSkill.Dialogs
             string token = null;
             if (activity.ChannelId.Equals("cortana", StringComparison.InvariantCultureIgnoreCase))
             {
-                token = await context.GetAccessToken(string.Empty);
+                // Call extension method to extract token from cortana Connected Service
+                token = activity.AuthorizationToken();
             }
             else
             {
@@ -83,6 +86,8 @@ namespace RomeMSGraphSkill.Dialogs
             }
             else
             {
+                await context.SayAsync($"Discovering your devices...", $" Discovering your devices...", new MessageOptions() { InputHint = InputHints.IgnoringInput });
+
                 var devicesResponse = await new DeviceGraphService().GetDevicesAsync(token);
                 if (devicesResponse.Item1)
                 {
@@ -111,6 +116,19 @@ namespace RomeMSGraphSkill.Dialogs
                         descriptions.Add($"{counter}. {userDevice.Name}");
                         choices.Add(counter.ToString(), new List<string> { userDevice.Name, userDevice.Name.ToLowerInvariant() });
                         counter++;
+                    }
+
+                    // Additional speech for devices with no screen TODO
+                    if (activity.ChannelId.Equals("cortana", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        counter = 1;
+                        StringBuilder devicesPrompt = new StringBuilder();
+                        foreach (var userDevice in userDevices)
+                        {
+                            devicesPrompt.Append($"{counter}, {userDevice.Kind}, {userDevice.Model}. ");
+                            counter++;
+                        }
+                        await context.SayAsync(devicesPrompt.ToString(), devicesPrompt.ToString(), new MessageOptions() { InputHint = InputHints.IgnoringInput });
                     }
 
                     var promptOptions = new PromptOptionsWithSynonyms<string>(
