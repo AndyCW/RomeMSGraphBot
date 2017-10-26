@@ -32,22 +32,6 @@ namespace RomeMSGraphSkill.Dialogs
 
             await EnsureAuthentication(context, activity);
 
-            //// check if the user said reset
-            //if (activity.Text.ToLowerInvariant().StartsWith("reset"))
-            //{
-            //    // ask the user to confirm if they want to reset the counter
-            //    var options = new PromptOptions<string>(prompt: "Are you sure you want to reset the count?",
-            //        retry: "Didn't get that!", speak: "Do you want me to reset the counter?",
-            //        retrySpeak: "You can say yes or no!",
-            //        options: PromptDialog.PromptConfirm.Options,
-            //        promptStyler: new PromptStyler());
-
-            //    PromptDialog.Confirm(context, AfterResetAsync, options);
-
-            //}
-            //else
-
-
         }
 
         #region AuthBot
@@ -88,13 +72,14 @@ namespace RomeMSGraphSkill.Dialogs
             {
                 await context.SayAsync($"Discovering your devices...", $" Discovering your devices...", new MessageOptions() { InputHint = InputHints.IgnoringInput });
 
-                var devicesResponse = await new DeviceGraphService().GetDevicesAsync(token);
+                var devicesResponse = await new DeviceGraphService().GetDevicesAsync(context, token);
                 if (devicesResponse.Item1)
                 {
                     List<UserDevice> userDevices = new List<UserDevice>();
                     foreach (var item in devicesResponse.Item2)
                     {
-                        if (item.Status.ToLower() == "online")
+                        // Exclude devices that are not "online" and that are "CortanaSdk" (currently only Invoke devices)
+                        if (item.Status.ToLower() == "online" && item.Platform != "CortanaSdk")
                         {
                             userDevices.Add(item);
                         }
