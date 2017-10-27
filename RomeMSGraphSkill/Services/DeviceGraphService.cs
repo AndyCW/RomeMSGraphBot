@@ -107,9 +107,9 @@ namespace RomeMSGraphSkill.Services
         {
             do
             {
+                await Task.Delay(5000);
                 if (ct.IsCancellationRequested) break;
 
-                await Task.Delay(5000);
                 await context.SayAsync($"Working on it...", $"Working on it", new MessageOptions() { InputHint = InputHints.IgnoringInput });
 
             } while (true);
