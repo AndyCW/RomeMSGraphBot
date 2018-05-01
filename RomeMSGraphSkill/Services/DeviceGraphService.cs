@@ -107,6 +107,7 @@ namespace RomeMSGraphSkill.Services
         {
             do
             {
+                if (ct.IsCancellationRequested) break;
                 await Task.Delay(5000);
                 if (ct.IsCancellationRequested) break;
 
